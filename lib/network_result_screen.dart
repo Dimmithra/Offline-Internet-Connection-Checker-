@@ -113,7 +113,16 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Internet Connection Check'),
+        centerTitle: true,
+        backgroundColor: Colors.greenAccent,
+        title: Text(
+          'Internet Connection Check',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: loadData,
@@ -127,16 +136,22 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
                 children: [
                   Text(
                     "Network Status",
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   _connectionStatus == "Connected"
                       ? Text(
                           ' $_connectionStatus',
-                          style: TextStyle(fontSize: 18, color: Colors.blue),
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold),
                         )
                       : Text(
                           ' $_connectionStatus',
-                          style: TextStyle(fontSize: 18, color: Colors.red),
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold),
                         ),
                 ],
               ),
