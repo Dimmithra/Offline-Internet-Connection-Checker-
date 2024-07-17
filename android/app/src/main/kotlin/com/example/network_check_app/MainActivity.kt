@@ -1,5 +1,9 @@
 package com.example.network_check_app
 
+import android.net.TrafficStats
+import android.os.Handler
+import android.os.Looper
+import android.annotation.SuppressLint
 import io.flutter.embedding.android.FlutterActivity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -20,6 +24,9 @@ import android.telephony.TelephonyManager
 class MainActivity: FlutterActivity() {
   private val CHANNEL = "com.example.network_check_app/connectivity"
   private val REQUEST_CODE = 101
+  private var totalTxBytes: Long = 0
+  private var totalRxBytes: Long = 0
+  private var lastUpdateTime: Long = 0
 override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
   super.configureFlutterEngine(flutterEngine)
   MethodChannel(
@@ -39,6 +46,14 @@ override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
           ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.READ_PHONE_STATE), REQUEST_CODE)
           result.error("PERMISSION_DENIED", "Permission denied to read phone state", null)
         }
+      }
+      "startMonitoringNetworkSpeed" -> {
+        startNetworkSpeedMonitoring()
+        result.success(true)
+      }
+      "stopMonitoringNetworkSpeed" -> {
+        stopNetworkSpeedMonitoring()
+        result.success(true)
       }
       else -> result.notImplemented()
     }
@@ -64,6 +79,7 @@ override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
   }
 
   //service provider
+  @SuppressLint("SuspiciousIndentation")
   private fun getNetworkInfo(): String {
     val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -110,6 +126,42 @@ override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
       // Permission granted, you can retry fetching the network info
       flutterEngine?.dartExecutor?.binaryMessenger?.let { MethodChannel(it, CHANNEL).invokeMethod("getNetworkInfo", null) }
     }
+  }
+
+  //network speed moitorking
+  private fun startNetworkSpeedMonitoring() {
+    totalTxBytes = TrafficStats.getTotalTxBytes()
+    totalRxBytes = TrafficStats.getTotalRxBytes()
+    lastUpdateTime = System.currentTimeMillis()
+
+    val handler = Handler(Looper.getMainLooper())
+    handler.postDelayed(object : Runnable {
+      override fun run() {
+        val currentTxBytes = TrafficStats.getTotalTxBytes()
+        val currentRxBytes = TrafficStats.getTotalRxBytes()
+        val currentTime = System.currentTimeMillis()
+
+        val txSpeed = ((currentTxBytes - totalTxBytes) * 1000 / (currentTime - lastUpdateTime)).toFloat()
+        val rxSpeed = ((currentRxBytes - totalRxBytes) * 1000 / (currentTime - lastUpdateTime)).toFloat()
+
+        totalTxBytes = currentTxBytes
+        totalRxBytes = currentRxBytes
+        lastUpdateTime = currentTime
+
+        flutterEngine?.dartExecutor?.binaryMessenger?.let {
+          MethodChannel(it, CHANNEL).invokeMethod("updateNetworkSpeed", mapOf(
+            "txSpeed" to txSpeed,
+            "rxSpeed" to rxSpeed
+          ))
+        }
+
+        handler.postDelayed(this, 1000) // Update speed every second
+      }
+    }, 1000) // Start monitoring after 1 second delay
+  }
+
+  private fun stopNetworkSpeedMonitoring() {
+    // Stop any ongoing monitoring tasks
   }
 
 }

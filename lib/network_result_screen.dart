@@ -14,11 +14,13 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
       MethodChannel('com.example.network_check_app/connectivity');
   String _networkInfo = 'Unknown network info.';
   String _connectionStatus = 'Unknown';
-
+  double _txSpeed = 0.0;
+  double _rxSpeed = 0.0;
   @override
   void initState() {
     super.initState();
     loadData();
+    _startMonitoringNetworkSpeed();
   }
 
   Future<void> _checkInternetConnection() async {
@@ -57,7 +59,7 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
     String networkInfo;
     try {
       dev.log("Status: $_connectionStatus");
-      final String result = await  platform.invokeMethod('getNetworkType');
+      final String result = await platform.invokeMethod('getNetworkType');
       networkInfo = result;
     } on PlatformException catch (e) {
       networkInfo = "Failed to get network info: '${e.message}'.";
@@ -68,10 +70,43 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
     });
   }
 
+  void _startMonitoringNetworkSpeed() async {
+    try {
+      await platform.invokeMethod('startMonitoringNetworkSpeed');
+      platform.setMethodCallHandler((call) async {
+        // Make the callback async
+        if (call.method == 'updateNetworkSpeed') {
+          setState(() {
+            _txSpeed = call.arguments['txSpeed'];
+            _rxSpeed = call.arguments['rxSpeed'];
+          });
+        }
+        return null; // Return a Future<dynamic> explicitly
+      });
+    } on PlatformException catch (e) {
+      print('Failed to start monitoring network speed: ${e.message}');
+    }
+  }
+
+  void _stopMonitoringNetworkSpeed() async {
+    try {
+      await platform.invokeMethod('stopMonitoringNetworkSpeed');
+    } on PlatformException catch (e) {
+      print('Failed to stop monitoring network speed: ${e.message}');
+    }
+  }
+
   Future<void> loadData() async {
     _checkInternetConnection();
     _getNetworkInfo();
     _getNetworkType();
+    // _startMonitoringNetworkSpeed();
+  }
+
+  @override
+  void dispose() {
+    _stopMonitoringNetworkSpeed();
+    super.dispose();
   }
 
   @override
@@ -107,18 +142,20 @@ class _NetworkResultScreenState extends State<NetworkResultScreen> {
               ),
             ),
             SizedBox(height: 20),
-            // ElevatedButton(
-            //   onPressed: () {
-            //     setState(() {
-            //       dev.log("data $_networkInfo");
-            //     });
-            //   },
-            //   // child: Text("Log Data"),
-            // ),
-            SizedBox(height: 20),
-            Text(
-              "Data: $_networkInfo",
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Text(
+                "$_networkInfo",
+                textAlign: TextAlign.start,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Text('Transmit Speed: $_txSpeed bytes/s'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Text('Receive Speed: $_rxSpeed bytes/s'),
             ),
           ],
         ),
